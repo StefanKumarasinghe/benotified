@@ -1,13 +1,15 @@
 # BeNotified
 
-Internal alerting and incident service for BeObservant.
+Internal alerting and incident service for Be Observant. Powered using Alert Manager
+
+![alt text](assets/benotified.png)
 
 ## Purpose
 
-BeNotified owns the alerting domain:
-- alert rules and Mimir ruler sync
-- incident lifecycle and notes
-- notification channels and delivery
+Be Notified owns the alerting domain:
+- Alert rules and Mimir ruler sync
+- Incident lifecycle and notes
+- Notification channels and delivery
 - Jira integration
 - Alertmanager webhook ingestion
 
