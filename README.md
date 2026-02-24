@@ -1,63 +1,113 @@
-# BeNotified
+# 🔔 Be Notified
 
-Internal alerting and incident service for Be Observant. Powered using Alert Manager
+### The Pulse of Incident Orchestration & Alert Management.
 
-![alt text](assets/benotified.png)
+**Be Notified** is the high-performance engine that powers the alerting domain of the Be Observant platform. While Alertmanager handles the routing, **Be Notified** handles the *human* side of the equation—managing the full incident lifecycle, coordinating team collaborations, and bridging the gap between raw telemetry and external tools like Jira, Slack, and PagerDuty.
 
-## Purpose
+![BeNotified](assets/beobservant.png)
 
-Be Notified owns the alerting domain:
-- Alert rules and Mimir ruler sync
-- Incident lifecycle and notes
-- Notification channels and delivery
-- Jira integration
-- Alertmanager webhook ingestion
+Designed as an internal-tier service, it provides a secure, multi-tenant layer to sync rules with Mimir and ensure that every alert is not just heard, but acted upon.
 
-Main `beobservant` remains the public API, permission, scope, and audit authority and proxies alertmanager endpoints to BeNotified.
+---
 
-## Runtime
+## ✨ Core Capabilities
 
-- Service port: `4323`
-- Internal base path: `/internal/v1`
-- Health: `/health`
-- Readiness: `/ready`
+* **⚡ Intelligent Ingestion:** Seamlessly processes webhooks from Alertmanager and translates them into actionable incidents.
+* **📋 Incident Management:** A centralized hub for tracking status, adding notes, and assigning responders.
+* **🔄 Mimir Rule Sync:** Automatically keeps your PromQL alert rules in sync with the Mimir ruler.
+* **🔌 Enterprise Integrations:** Native, bi-directional integration with Jira and multi-channel delivery (Email, Slack, etc.).
+* **🛡️ Secure Internal Proxy:** Proxies authenticated Alertmanager traffic from the main `beobservant` API.
 
-## Authentication
+---
 
-For internal API calls from main service:
-- `X-Service-Token: <shared-token>`
-- `Authorization: Bearer <context-jwt>`
+## 🏗 System Architecture & Runtime
 
-For direct Alertmanager webhooks:
-- Bearer token via `INBOUND_WEBHOOK_TOKEN`
+Be Notified is designed to run within your internal network, acting as a protected backend for the primary platform.
 
-## Required environment
+| Detail | Specification |
+| --- | --- |
+| **Service Port** | `4323` |
+| **Internal Base Path** | `/internal/v1` |
+| **Primary Dependency** | Alertmanager & Mimir |
+| **Authentication** | Shared Service Token + Context JWT |
 
-- `BENOTIFIED_DATABASE_URL`
-- `BENOTIFIED_EXPECTED_SERVICE_TOKEN` (or `GATEWAY_INTERNAL_SERVICE_TOKEN`)
-- `BENOTIFIED_CONTEXT_VERIFY_KEY` (or `BENOTIFIED_CONTEXT_SIGNING_KEY`)
-- `BENOTIFIED_CONTEXT_ISSUER`
-- `BENOTIFIED_CONTEXT_AUDIENCE`
-- `BENOTIFIED_CONTEXT_ALGORITHMS`
-- `INBOUND_WEBHOOK_TOKEN`
-- `MIMIR_URL`
-- `ALERTMANAGER_URL`
-- `DATA_ENCRYPTION_KEY` (recommended)
+### Internal Communication
 
-See repository root `.env.example` for full configuration.
+To maintain a strict security posture, all calls from the main service to Be Notified must include:
 
-## Notes
+* `X-Service-Token`: A shared secret between internal services.
+* `Authorization: Bearer <context-jwt>`: Signed user/tenant context.
 
-- TLS is optional (`BENOTIFIED_TLS_ENABLED=false` by default).
-- Deploy on an internal network only.
-- BeNotified keeps operational logs; authoritative user audit is in main service.
+---
 
-## Testing
+## 🚀 Getting Started
+
+### 1. Installation
+
+Clone the repository alongside your other Be Observant services:
+
+```bash
+git clone https://github.com/observantio/benotified.git BeNotified
+cd BeNotified
+
+```
+
+### 2. Run with Docker
+
+Build and launch the notification engine:
+
+```bash
+docker build -t benotified:latest .
+docker run --rm -it \
+    -p 4323:4323 \
+    --name benotified \
+    benotified:latest
+
+```
+
+### 3. Required Environment
+
+Ensure your `.env` or secret manager contains these critical variables:
+
+```env
+BENOTIFIED_DATABASE_URL=postgres://...
+BENOTIFIED_EXPECTED_SERVICE_TOKEN=your-shared-secret
+INBOUND_WEBHOOK_TOKEN=secure-webhook-token
+MIMIR_URL=http://mimir:9009
+ALERTMANAGER_URL=http://alertmanager:9093
+```
+
+---
+
+## 🛠 Operational Workflow
+
+### The Alert Journey
+
+1. **Trigger:** An alert fires in Prometheus/Mimir based on your rules.
+2. **Route:** Alertmanager sends a webhook to Be Notified.
+3. **Create:** Be Notified validates the `INBOUND_WEBHOOK_TOKEN` and opens a new Incident.
+4. **Notify:** Based on visibility (Private/Group/Tenant), notifications are dispatched to configured channels.
+5. **Resolve:** The team collaborates in the UI; once resolved, the status is synced back across the ecosystem.
+
+---
+
+## 🤝 Development & Contribution
+
+Be Notified is built with Python and FastAPI, optimized for low-latency incident processing.
+
+**Running Tests:**
 
 ```bash
 pytest -q
 ```
 
-When contributing from the BeObservant mono-repo root, `.pre-commit-config.yaml`
-runs this BeNotified test suite together with all other service and UI checks
-before each commit.
+**Quality Gates:**
+This repository is a core part of the **Be Observant** ecosystem. If you are contributing from the mono-repo root, your commits will be validated by `.pre-commit-config.yaml` to ensure cross-service compatibility.
+
+---
+
+## 📄 License
+
+Licensed under the **Apache License 2.0**.
+
+*Attribution: The notices included in the source code and headers must be preserved in all redistributions. This service is intended for internal network deployment and should not be exposed to the public internet.*
