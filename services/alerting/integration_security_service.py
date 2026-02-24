@@ -77,11 +77,13 @@ def _encrypt_tenant_secret(value: Optional[str]) -> Optional[str]:
     if not value:
         return None
     if not config.DATA_ENCRYPTION_KEY:
+        logger.warning("DATA_ENCRYPTION_KEY is not configured; storing Jira secret without encryption")
         return value
     try:
         fernet = Fernet(config.DATA_ENCRYPTION_KEY)
         return f"enc:{fernet.encrypt(value.encode()).decode()}"
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to encrypt Jira secret; storing plaintext fallback: %s", exc)
         return value
 
 
