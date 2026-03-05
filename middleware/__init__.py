@@ -9,7 +9,8 @@ You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2
 """
 
 from .resilience import with_retry, with_timeout
-from .limits import RequestSizeLimitMiddleware, ConcurrencyLimitMiddleware
+from .request_size_limit import RequestSizeLimitMiddleware
+from .concurrency_limit import ConcurrencyLimitMiddleware
 from .dependencies import get_current_user, require_any_permission, require_any_permission_with_scope
 from .headers import security_headers_middleware
 

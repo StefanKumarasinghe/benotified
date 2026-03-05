@@ -1,5 +1,5 @@
 """
-Request size and concurrency limiting middleware.
+Request size limiting middleware.
 
 Copyright (c) 2026 Stefan Kumarasinghe
 
@@ -10,16 +10,14 @@ You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from typing import Optional
 
 from starlette.responses import PlainTextResponse
 
 logger = logging.getLogger(__name__)
 
 _request_size_rejections_total = 0
-_concurrency_busy_total = 0
+
 
 def _inc_request_size_rejections() -> int:
     global _request_size_rejections_total
@@ -27,16 +25,11 @@ def _inc_request_size_rejections() -> int:
     return _request_size_rejections_total
 
 
-def _inc_concurrency_busy() -> int:
-    global _concurrency_busy_total
-    _concurrency_busy_total += 1
-    return _concurrency_busy_total
-
-
 class _TooLarge(Exception):
     def __init__(self, max_bytes: int) -> None:
         super().__init__(f"Request body exceeds {max_bytes} bytes")
         self.max_bytes = max_bytes
+
 
 class RequestSizeLimitMiddleware:
     def __init__(self, app, max_bytes: int = 1_048_576) -> None:
@@ -59,7 +52,9 @@ class RequestSizeLimitMiddleware:
                     total = _inc_request_size_rejections()
                     logger.warning(
                         "request_size_rejected total=%s content_length=%s max_bytes=%s",
-                        total, content_length, self.max_bytes,
+                        total,
+                        content_length,
+                        self.max_bytes,
                     )
                     resp = PlainTextResponse("Request body too large", status_code=413)
                     await resp(scope, receive, send)
@@ -94,39 +89,3 @@ class RequestSizeLimitMiddleware:
             if not response_started:
                 resp = PlainTextResponse("Request body too large", status_code=413)
                 await resp(scope, receive, send)
-
-
-class ConcurrencyLimitMiddleware:
-    def __init__(
-        self,
-        app,
-        max_concurrent: int = 200,
-        acquire_timeout: float = 1.0,
-    ) -> None:
-        self.app = app
-        self._max_concurrent = int(max_concurrent)
-        self._timeout = float(acquire_timeout)
-        self._sem: Optional[asyncio.Semaphore] = None
-
-    def _get_semaphore(self) -> asyncio.Semaphore:
-        if self._sem is None:
-            self._sem = asyncio.Semaphore(self._max_concurrent)
-        return self._sem
-
-    async def __call__(self, scope, receive, send) -> None:
-        if scope.get("type") != "http":
-            await self.app(scope, receive, send)
-            return
-        try:
-            await asyncio.wait_for(self._get_semaphore().acquire(), timeout=self._timeout)
-        except asyncio.TimeoutError:
-            total = _inc_concurrency_busy()
-            logger.warning("concurrency_limit_busy total=%s timeout=%s", total, self._timeout)
-            resp = PlainTextResponse("Server busy, please retry", status_code=503)
-            await resp(scope, receive, send)
-            return
-
-        try:
-            await self.app(scope, receive, send)
-        finally:
-            self._get_semaphore().release()

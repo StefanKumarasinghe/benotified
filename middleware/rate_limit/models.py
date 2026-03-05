@@ -1,0 +1,28 @@
+"""
+Rate limit models for Be Notified middleware.
+
+Copyright (c) 2026 Stefan Kumarasinghe
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass
+class RateLimitState:
+    window_start: float
+    count: int
+
+
+@dataclass(frozen=True)
+class RateLimitHitResult:
+    allowed: bool
+    remaining: int
+    retry_after_seconds: int
+    backend: str
+    fallback_used: bool = False

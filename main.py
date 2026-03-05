@@ -10,7 +10,8 @@ from config import config
 from database import connection_test, ensure_database_exists, init_database, init_db
 from middleware.headers import security_headers_middleware
 from middleware.error_handlers import general_exception_handler, validation_exception_handler
-from middleware.limits import ConcurrencyLimitMiddleware, RequestSizeLimitMiddleware
+from middleware.concurrency_limit import ConcurrencyLimitMiddleware
+from middleware.request_size_limit import RequestSizeLimitMiddleware
 
 from routers.observability.alerts import router as alertmanager_alerts_router, webhook_router as alertmanager_webhook_router
 from routers.observability.incidents import router as alertmanager_incidents_router
