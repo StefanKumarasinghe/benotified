@@ -77,7 +77,8 @@ def test_payloads_include_human_context_fields_when_present():
             "summary": "disk almost full",
             "description": "root partition > 90%",
             "beobservantCorrelationId": "core-infra",
-            "beobservantCreatedBy": "alice",
+            "beobservantCreatedBy": "bc075903-97cc-4691-9d8f-e443c47cd19e",
+            "beobservantCreatedByUsername": "alice",
             "beobservantProductName": "Payments API",
         },
     )

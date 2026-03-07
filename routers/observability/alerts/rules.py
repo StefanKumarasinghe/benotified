@@ -27,6 +27,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _with_creator_username(rule: AlertRuleCreate, current_user: TokenData) -> AlertRuleCreate:
+    annotations = dict(rule.annotations or {})
+    creator_username = str(getattr(current_user, "username", "") or getattr(current_user, "user_id", "") or "").strip()
+    if creator_username:
+        annotations["beobservantCreatedByUsername"] = creator_username
+    return rule.model_copy(update={"annotations": annotations})
+
+
 @router.post("/rules/import")
 @handle_route_errors()
 async def import_alert_rules(
@@ -50,6 +58,7 @@ async def import_alert_rules(
     imported_rules: List[AlertRule] = []
 
     for rule in parsed_rules:
+        rule = _with_creator_username(rule, current_user)
         key = (rule.name, rule.group, rule.org_id or "")
         current = existing_index.get(key)
         if current:
@@ -195,6 +204,7 @@ async def create_alert_rule(
     ),
 ):
     tenant_id, user_id, group_ids = alertmanager_service.user_scope(current_user)
+    rule = _with_creator_username(rule, current_user)
     resolved_org_id = alertmanager_service.resolve_rule_org_id(rule.org_id, current_user)
     if rule.org_id != resolved_org_id:
         rule = rule.model_copy(update={"org_id": resolved_org_id})
@@ -215,6 +225,7 @@ async def update_alert_rule(
     ),
 ):
     tenant_id, user_id, group_ids = alertmanager_service.user_scope(current_user)
+    rule = _with_creator_username(rule, current_user)
     existing_rule = await run_in_threadpool(storage_service.get_alert_rule, rule_id, tenant_id, user_id, group_ids)
     if not existing_rule:
         raise HTTPException(status_code=404, detail=f"Alert rule {rule_id} not found or access denied")
@@ -264,6 +275,12 @@ async def test_alert_rule(
             "description": rule.annotations.get("description", rule.expr),
             "beobservantCorrelationId": str(getattr(rule, "group", "") or ""),
             "beobservantCreatedBy": str(getattr(rule, "created_by", "") or ""),
+            "beobservantCreatedByUsername": str(
+                (rule.annotations or {}).get("beobservantCreatedByUsername")
+                or getattr(current_user, "username", "")
+                or getattr(rule, "created_by", "")
+                or ""
+            ),
             "beobservantRuleName": str(getattr(rule, "name", "") or ""),
             "beobservantProductName": str(
                 rule.annotations.get("beobservantProductName")

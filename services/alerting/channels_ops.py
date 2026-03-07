@@ -69,8 +69,15 @@ async def notify_for_alerts(service, tenant_id: str, alerts_list, storage_servic
             enriched_annotations = dict(annotations)
             enriched_annotations.setdefault("beobservantCorrelationId", str(getattr(matched_rule, "group", "") or ""))
             enriched_annotations.setdefault("beobservantCreatedBy", str(getattr(matched_rule, "created_by", "") or ""))
-            enriched_annotations.setdefault("beobservantRuleName", str(getattr(matched_rule, "name", "") or ""))
             rule_annotations = getattr(matched_rule, "annotations", {}) or {}
+            created_by_username = (
+                rule_annotations.get("beobservantCreatedByUsername")
+                or rule_annotations.get("createdByUsername")
+                or rule_annotations.get("created_by_username")
+            )
+            if created_by_username:
+                enriched_annotations.setdefault("beobservantCreatedByUsername", str(created_by_username))
+            enriched_annotations.setdefault("beobservantRuleName", str(getattr(matched_rule, "name", "") or ""))
             product_name = (
                 rule_annotations.get("beobservantProductName")
                 or rule_annotations.get("productName")

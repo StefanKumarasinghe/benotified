@@ -77,7 +77,15 @@ def _human_context(alert: Alert) -> list[tuple[str, str]]:
         "correlationId",
         "group",
     )
-    created_by = _context_value(alert, "beobservantCreatedBy", "created_by", "createdBy")
+    created_by = _context_value(
+        alert,
+        "beobservantCreatedByUsername",
+        "created_by_username",
+        "createdByUsername",
+        "beobservantCreatedBy",
+        "created_by",
+        "createdBy",
+    )
     product_name = _context_value(alert, "beobservantProductName", "product")
     rule_name = _context_value(alert, "beobservantRuleName")
     context: list[tuple[str, str]] = []
@@ -173,7 +181,20 @@ def build_slack_payload(alert: Alert, action: str) -> dict:
             {"title": "Severity", "value": severity or "unknown", "short": True},
             {"title": "Status", "value": status_text, "short": True},
             {"title": "Correlation ID", "value": _context_value(alert, "beobservantCorrelationId", "correlation_id", "correlationId", "group") or NO_VALUE, "short": True},
-            {"title": "Created by", "value": _context_value(alert, "beobservantCreatedBy", "created_by", "createdBy") or NO_VALUE, "short": True},
+            {
+                "title": "Created by",
+                "value": _context_value(
+                    alert,
+                    "beobservantCreatedByUsername",
+                    "created_by_username",
+                    "createdByUsername",
+                    "beobservantCreatedBy",
+                    "created_by",
+                    "createdBy",
+                )
+                or NO_VALUE,
+                "short": True,
+            },
             {"title": "Product", "value": _context_value(alert, "beobservantProductName", "product") or NO_VALUE, "short": True},
             {"title": "Summary", "value": get_annotation(alert, "summary") or NO_VALUE, "short": False},
             {"title": "Description", "value": get_annotation(alert, "description") or NO_VALUE, "short": False},
@@ -209,7 +230,19 @@ def build_teams_payload(alert: Alert, action: str) -> dict:
                 {"name": "Severity", "value": severity or "unknown"},
                 {"name": "Status", "value": status_text},
                 {"name": "Correlation ID", "value": _context_value(alert, "beobservantCorrelationId", "correlation_id", "correlationId", "group") or NO_VALUE},
-                {"name": "Created by", "value": _context_value(alert, "beobservantCreatedBy", "created_by", "createdBy") or NO_VALUE},
+                {
+                    "name": "Created by",
+                    "value": _context_value(
+                        alert,
+                        "beobservantCreatedByUsername",
+                        "created_by_username",
+                        "createdByUsername",
+                        "beobservantCreatedBy",
+                        "created_by",
+                        "createdBy",
+                    )
+                    or NO_VALUE,
+                },
                 {"name": "Product", "value": _context_value(alert, "beobservantProductName", "product") or NO_VALUE},
                 {"name": "Started", "value": _fmt(alert.starts_at)},
                 {"name": "Summary", "value": get_annotation(alert, "summary") or NO_VALUE},
