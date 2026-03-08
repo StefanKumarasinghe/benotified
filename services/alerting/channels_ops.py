@@ -8,24 +8,20 @@ you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
 """
 
-from datetime import datetime, timezone
-from models.alerting.alerts import Alert, AlertState, AlertStatus
 import logging
+
+from datetime import datetime, timezone
+
+import httpx
+
+from models.alerting.alerts import Alert, AlertState, AlertStatus
+from services.alerting.suppression import is_suppressed_status
 
 logger = logging.getLogger(__name__)
 
 
 def _is_suppressed(raw_status) -> bool:
-    if isinstance(raw_status, dict):
-        state_text = str(raw_status.get("state") or "").strip().lower()
-        if state_text == "suppressed":
-            return True
-        if raw_status.get("silencedBy"):
-            return True
-        if raw_status.get("inhibitedBy"):
-            return True
-        return False
-    return str(raw_status or "").strip().lower() == "suppressed"
+    return is_suppressed_status(raw_status)
 
 
 async def notify_for_alerts(service, tenant_id: str, alerts_list, storage_service, notification_service) -> None:
@@ -117,23 +113,15 @@ async def notify_for_alerts(service, tenant_id: str, alerts_list, storage_servic
 
         action = "firing" if is_active else "resolved"
         for channel in channels:
-            try:
-                sent = await notification_service.send_notification(channel, alert_model, action)
-                logger.info("Sent notification to channel %s ok=%s", channel.name, sent)
-            except Exception as exc:
-                logger.exception(
-                    "Failed to send notification for rule %s to channel %s: %s",
-                    alertname,
-                    getattr(channel, "name", "unknown"),
-                    exc,
-                )
+            sent = await notification_service.send_notification(channel, alert_model, action)
+            logger.info("Sent notification to channel %s ok=%s", channel.name, sent)
 
 async def get_status(service):
     try:
         response = await service._client.get(f"{service.alertmanager_url}/api/v2/status")
         response.raise_for_status()
         return service.status_model(**response.json())
-    except Exception as exc:
+    except (httpx.HTTPError, TypeError, ValueError) as exc:
         logger.error("Error fetching status: %s", exc)
         return None
 

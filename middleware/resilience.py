@@ -34,30 +34,45 @@ def with_retry(
             for attempt in range(max_retries + 1):
                 try:
                     return await func(*args, **kwargs)
-                except (httpx.HTTPError, asyncio.TimeoutError) as e:
-                    if isinstance(e, httpx.HTTPStatusError) and getattr(e, 'response', None) is not None:
-                        status_code = e.response.status_code
-                        if 400 <= status_code < 500:
-                            logger.debug(
-                                "%s: non-retriable HTTPStatusError %s — failing fast",
-                                func.__name__, status_code
-                            )
-                            raise
+                except httpx.HTTPStatusError as exc:
+                    status_code = exc.response.status_code
+                    if 400 <= status_code < 500:
+                        logger.debug(
+                            "%s: non-retriable HTTPStatusError %s — failing fast",
+                            func.__name__, status_code
+                        )
+                        raise
 
-                    last_exception = e
+                    last_exception = exc
                     if attempt < max_retries:
                         wait_time = min(config.RETRY_MAX_BACKOFF, backoff * (2 ** attempt))
                         jitter = wait_time * max(0.0, config.RETRY_JITTER)
                         wait_time = max(0.0, wait_time + random.uniform(-jitter, jitter))
                         logger.warning(
                             f"Attempt {attempt + 1}/{max_retries + 1} failed for "
-                            f"{func.__name__}: {e}. Retrying in {wait_time}s..."
+                            f"{func.__name__}: {exc}. Retrying in {wait_time}s..."
                         )
                         await asyncio.sleep(wait_time)
                     else:
                         logger.error(
                             f"All {max_retries + 1} attempts failed for "
-                            f"{func.__name__}: {e}"
+                            f"{func.__name__}: {exc}"
+                        )
+                except (httpx.RequestError, asyncio.TimeoutError) as exc:
+                    last_exception = exc
+                    if attempt < max_retries:
+                        wait_time = min(config.RETRY_MAX_BACKOFF, backoff * (2 ** attempt))
+                        jitter = wait_time * max(0.0, config.RETRY_JITTER)
+                        wait_time = max(0.0, wait_time + random.uniform(-jitter, jitter))
+                        logger.warning(
+                            f"Attempt {attempt + 1}/{max_retries + 1} failed for "
+                            f"{func.__name__}: {exc}. Retrying in {wait_time}s..."
+                        )
+                        await asyncio.sleep(wait_time)
+                    else:
+                        logger.error(
+                            f"All {max_retries + 1} attempts failed for "
+                            f"{func.__name__}: {exc}"
                         )
 
             if last_exception is not None:

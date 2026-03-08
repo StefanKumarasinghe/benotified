@@ -81,10 +81,7 @@ async def create_incident_jira(
             credentials=jira_integration_credentials(integration),
         )
     except JiraError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
-    except Exception:
-        logger.exception("Unexpected error creating Jira issue for incident %s", incident_id)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create Jira issue")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
     issue_key = str(response.get("key") or "").strip()
     if issue_key:
@@ -95,8 +92,6 @@ async def create_incident_jira(
             )
         except JiraError as exc:
             logger.warning("Failed to move newly created Jira issue %s to To Do: %s", issue_key, exc)
-        except Exception:
-            logger.exception("Unexpected error while moving Jira issue %s to To Do", issue_key)
 
     updated = await run_in_threadpool(
         storage_service.update_incident,
@@ -122,8 +117,6 @@ async def create_incident_jira(
             )
     except JiraError as exc:
         logger.warning("Failed to backfill incident notes to Jira issue %s: %s", response.get("key"), exc)
-    except Exception:
-        logger.exception("Unexpected error while backfilling incident notes to Jira issue %s", response.get("key"))
 
     logger.info("Created Jira issue %s for incident %s", response.get("key"), incident_id)
     return updated
@@ -160,7 +153,7 @@ async def sync_incident_jira_notes(
     try:
         existing_comments = await jira_service.list_comments(incident.jira_ticket_key, credentials=credentials)
     except JiraError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
     existing_bodies = {
         str(item.get("body") or "").strip()
@@ -179,7 +172,7 @@ async def sync_incident_jira_notes(
             existing_bodies.add(body)
             synced += 1
         except JiraError as exc:
-            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
     return {"synced": synced, "skipped": skipped, "totalNotes": len(note_bodies)}
 
@@ -209,6 +202,6 @@ async def list_incident_jira_comments(
     try:
         comments = await jira_service.list_comments(incident.jira_ticket_key, credentials=credentials)
     except JiraError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
     return {"comments": comments}

@@ -12,6 +12,14 @@ import re
 from typing import Dict, List, Any
 from services.common.url_utils import is_safe_http_url
 
+
+def _as_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    return str(value or "").strip().lower() in ("1", "true", "yes", "on")
+
 def validate_channel_config(channel_type: str, channel_config: Dict[str, Any] | None) -> List[str]:
     cfg = channel_config or {}
     normalized_type = str(channel_type or "").strip().lower()
@@ -33,7 +41,7 @@ def validate_channel_config(channel_type: str, channel_config: Dict[str, Any] | 
             if smtp_port is not None:
                 try:
                     port_num = int(smtp_port)
-                    if not (1 <= port_num <= 65535):
+                    if not 1 <= port_num <= 65535:
                         errors.append("SMTP email channel 'smtp_port' must be between 1 and 65535")
                 except (ValueError, TypeError):
                     errors.append("SMTP email channel 'smtp_port' must be a valid integer")

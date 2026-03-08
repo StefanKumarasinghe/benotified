@@ -13,7 +13,7 @@ import os
 from urllib.parse import urlparse
 from typing import Dict, List, Optional
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from fastapi import HTTPException, status
 from sqlalchemy import and_
 from sqlalchemy.orm.attributes import flag_modified
@@ -171,7 +171,7 @@ def encrypt_tenant_secret(value: Optional[str]) -> Optional[str]:
     try:
         fernet = Fernet(config.DATA_ENCRYPTION_KEY)
         return f"enc:{fernet.encrypt(value.encode()).decode()}"
-    except Exception as exc:
+    except (TypeError, ValueError) as exc:
         logger.exception("Failed to encrypt Jira secret")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -191,7 +191,7 @@ def decrypt_tenant_secret(value: Optional[str]) -> Optional[str]:
     try:
         fernet = Fernet(config.DATA_ENCRYPTION_KEY)
         return fernet.decrypt(text[4:].encode()).decode()
-    except Exception:
+    except (InvalidToken, TypeError, ValueError):
         return None
 
 

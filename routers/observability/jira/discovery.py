@@ -26,7 +26,7 @@ async def list_jira_projects(
     try:
         projects = await jira_service.list_projects(credentials=get_effective_jira_credentials(current_user.tenant_id))
     except JiraError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     return {"enabled": True, "projects": projects}
 
 
@@ -46,7 +46,7 @@ async def list_jira_issue_types(
             credentials=get_effective_jira_credentials(current_user.tenant_id),
         )
     except JiraError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     return {"enabled": True, "issueTypes": issue_types}
 
 

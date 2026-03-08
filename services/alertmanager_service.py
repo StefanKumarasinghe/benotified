@@ -14,6 +14,7 @@ from hmac import compare_digest
 from typing import Dict, List, Optional
 
 from fastapi import HTTPException, Request, status
+from sqlalchemy.exc import SQLAlchemyError
 
 from config import config
 from database import get_db_session
@@ -221,7 +222,7 @@ class AlertManagerService:
                     db.add(PurgedSilence(id=silence_id, tenant_id=None))
                     db.commit()
                     logger.info("Purged silence %s persisted to DB", silence_id)
-        except Exception as exc:
+        except SQLAlchemyError as exc:
             logger.warning("Failed to persist purged silence %s: %s", silence_id, exc)
         return True
 

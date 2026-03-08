@@ -27,7 +27,7 @@ from services.jira_service import JiraError, jira_service
 async def jira_projects_via_integration(tenant_id: str, integration_id: str, current_user: TokenData) -> dict:
     try:
         integration = resolve_jira_integration(tenant_id, integration_id, current_user, require_write=False)
-    except Exception:
+    except HTTPException as exc:
         integration = next(
             (
                 item
@@ -37,7 +37,7 @@ async def jira_projects_via_integration(tenant_id: str, integration_id: str, cur
             None,
         )
         if not integration:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Jira integration not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Jira integration not found") from exc
     credentials = jira_integration_credentials(integration)
     base_url = str(credentials.get("base_url") or "").strip()
     host = (urlparse(base_url).hostname or "").strip().lower()
@@ -51,14 +51,14 @@ async def jira_projects_via_integration(tenant_id: str, integration_id: str, cur
     try:
         projects = await jira_service.list_projects(credentials=credentials)
     except JiraError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     return {"enabled": True, "projects": projects}
 
 
 async def jira_issue_types_via_integration(tenant_id: str, integration_id: str, project_key: str, current_user: TokenData) -> dict:
     try:
         integration = resolve_jira_integration(tenant_id, integration_id, current_user, require_write=False)
-    except Exception:
+    except HTTPException as exc:
         integration = next(
             (
                 item
@@ -68,7 +68,7 @@ async def jira_issue_types_via_integration(tenant_id: str, integration_id: str, 
             None,
         )
         if not integration:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Jira integration not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Jira integration not found") from exc
     credentials = jira_integration_credentials(integration)
     base_url = str(credentials.get("base_url") or "").strip()
     host = (urlparse(base_url).hostname or "").strip().lower()
@@ -85,7 +85,7 @@ async def jira_issue_types_via_integration(tenant_id: str, integration_id: str, 
             credentials=credentials,
         )
     except JiraError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     return {"enabled": True, "issueTypes": issue_types}
 
 
@@ -99,7 +99,7 @@ def resolve_incident_jira_credentials(incident, tenant_id: str, current_user: To
                 current_user,
                 require_write=False,
             )
-        except Exception:
+        except HTTPException:
             integration = next(
                 (
                     item
@@ -112,12 +112,12 @@ def resolve_incident_jira_credentials(incident, tenant_id: str, current_user: To
             return None
         try:
             return jira_integration_credentials(integration)
-        except Exception:
+        except (TypeError, ValueError):
             return None
 
     if not jira_is_enabled_for_tenant(tenant_id):
         return None
     try:
         return get_effective_jira_credentials(tenant_id)
-    except Exception:
+    except (TypeError, ValueError):
         return None

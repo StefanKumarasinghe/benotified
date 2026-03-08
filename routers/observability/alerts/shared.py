@@ -5,6 +5,7 @@ import logging
 from fastapi import HTTPException, Request, status
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
+from sqlalchemy.exc import SQLAlchemyError
 
 from models.access.auth_models import TokenData
 from models.alerting.silences import SilenceCreate, SilenceCreateRequest, Visibility
@@ -33,7 +34,7 @@ def scope_header(request: Request) -> str:
 async def sync_incidents(tenant_id: str, alerts, *, log_context: str) -> None:
     try:
         await run_in_threadpool(storage_service.sync_incidents_from_alerts, tenant_id, alerts, False)
-    except Exception as exc:
+    except SQLAlchemyError as exc:
         logger.warning("Incident sync skipped (%s): %s", log_context, exc)
 
 
@@ -59,14 +60,14 @@ def build_silence_payload(silence: SilenceCreateRequest, current_user: TokenData
     )
 
 
-def validate_channel(channel, notification_service: NotificationService) -> str:
+def validate_channel(channel, channel_service: NotificationService) -> str:
     requested_type = str(channel.type or "").strip().lower()
     if requested_type not in allowed_channel_types():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Channel type '{requested_type}' is disabled by organization policy",
         )
-    errors = notification_service.validate_channel_config(requested_type, channel.config)
+    errors = channel_service.validate_channel_config(requested_type, channel.config)
     if errors:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"errors": errors, "status": "error"})
     return requested_type

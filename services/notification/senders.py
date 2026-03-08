@@ -36,7 +36,7 @@ def _is_allowed_host(url: str, allowed_hosts=None, allowed_suffixes=None) -> boo
         if allowed_suffixes and host.endswith(allowed_suffixes):
             return True
         return False
-    except Exception:
+    except (TypeError, ValueError):
         return False
 
 
@@ -73,7 +73,7 @@ async def _send_json(
     except httpx.HTTPStatusError as exc:
         logger.warning("Webhook failed [%s]: %s", exc.response.status_code, url)
         return False
-    except Exception:
+    except httpx.HTTPError:
         logger.exception("Unexpected webhook error: %s", url)
         return False
 

@@ -228,11 +228,11 @@ def _enforce_ip_allowlist(request: Request, allowlist: str | None, *, scope: str
 
     try:
         networks = list(_parse_allowlist_networks(allowlist))
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Access denied for {scope}: invalid allowlist configuration",
-        )
+        ) from exc
 
     if not networks:
         if config.ALLOWLIST_FAIL_OPEN:
@@ -244,11 +244,11 @@ def _enforce_ip_allowlist(request: Request, allowlist: str | None, *, scope: str
 
     try:
         addr = ip_address(client_ip(request))
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Access denied for {scope}: invalid client IP",
-        )
+        ) from exc
 
     if not any(addr in net for net in networks):
         raise HTTPException(

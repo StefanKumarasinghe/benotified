@@ -47,7 +47,7 @@ async def import_alert_rules(
     try:
         parsed_rules = parse_rules_yaml(payload.yamlContent, payload.defaults)
     except RuleImportError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     if payload.dryRun:
         return {"status": "preview", "count": len(parsed_rules), "rules": [item.model_dump(by_alias=True) for item in parsed_rules]}
@@ -299,14 +299,10 @@ async def test_alert_rule(
     results = []
     success_count = 0
     for channel in channels:
-        try:
-            ok = await notification_service.send_notification(channel, alert, "test")
-            results.append({"channel": channel.name, "ok": ok})
-            if ok:
-                success_count += 1
-        except Exception as exc:
-            logger.warning("Test notification failed for channel %s on rule %s: %s", channel.name, rule_id, exc)
-            results.append({"channel": channel.name, "ok": False, "error": "delivery_error"})
+        ok = await notification_service.send_notification(channel, alert, "test")
+        results.append({"channel": channel.name, "ok": ok})
+        if ok:
+            success_count += 1
 
     return {
         "status": "success" if success_count else "failed",

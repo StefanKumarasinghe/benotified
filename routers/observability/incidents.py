@@ -11,8 +11,10 @@ You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2
 import logging
 from typing import List, Optional
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.concurrency import run_in_threadpool
+from sqlalchemy.exc import SQLAlchemyError
 
 from middleware.dependencies import require_permission_with_scope
 from middleware.error_handlers import handle_route_errors
@@ -106,7 +108,7 @@ async def patch_incident(
                         filter_labels={"fingerprint": existing.fingerprint},
                         active=True,
                     )
-            except Exception:
+            except httpx.HTTPError:
                 active_alerts = []
             if active_alerts:
                 raise HTTPException(
@@ -140,7 +142,7 @@ async def patch_incident(
                 AlertIncidentUpdateRequest(note=assignment_note),
                 group_ids,
             )
-        except Exception:
+        except SQLAlchemyError:
             logger.exception("Failed to record assignment note for incident %s", incident_id)
         await sync_note_to_jira_comment(
             updated,
@@ -154,16 +156,13 @@ async def patch_incident(
             current_user=current_user,
         )
 
-        try:
-            await notification_service.send_incident_assignment_email(
-                recipient_email=updated.assignee,
-                incident_title=updated.alert_name,
-                incident_status=updated.status,
-                incident_severity=updated.severity,
-                actor=current_user.username or current_user.user_id,
-            )
-        except Exception:
-            logger.exception("Failed to send assignment email for incident %s", incident_id)
+        await notification_service.send_incident_assignment_email(
+            recipient_email=updated.assignee,
+            incident_title=updated.alert_name,
+            incident_status=updated.status,
+            incident_severity=updated.severity,
+            actor=current_user.username or current_user.user_id,
+        )
 
     if payload.note:
         await sync_note_to_jira_comment(

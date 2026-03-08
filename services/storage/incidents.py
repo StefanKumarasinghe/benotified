@@ -19,7 +19,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status as http_status
 from sqlalchemy.orm import Session, joinedload
 
 from config import config as app_config
@@ -39,6 +39,7 @@ from services.alerting.integration_security_service import (
     load_tenant_jira_integrations,
 )
 from services.jira_service import JiraError, jira_service
+from services.alerting.suppression import is_suppressed_status
 from services.storage.serializers import incident_to_pydantic
 
 logger = logging.getLogger(__name__)
@@ -135,17 +136,7 @@ def _merge_metric_states(annotations: Dict[str, Any], *states: str) -> str:
 
 
 def _is_alert_suppressed(alert: Dict[str, Any]) -> bool:
-    raw_status = alert.get("status") or {}
-    if isinstance(raw_status, dict):
-        state_text = str(raw_status.get("state") or "").strip().lower()
-        if state_text == "suppressed":
-            return True
-        if raw_status.get("silencedBy"):
-            return True
-        if raw_status.get("inhibitedBy"):
-            return True
-        return False
-    return str(raw_status or "").strip().lower() == "suppressed"
+    return is_suppressed_status(alert.get("status") or {})
 
 
 def _incident_access_allowed(
@@ -239,8 +230,6 @@ def _move_reopened_incident_jira_ticket_to_todo(tenant_id: str, incident: AlertI
         _run_async(jira_service.transition_issue_to_todo(issue_key=issue_key, credentials=credentials))
     except JiraError as exc:
         logger.warning("Failed moving Jira issue %s to To Do for refired incident: %s", issue_key, exc)
-    except Exception:
-        logger.exception("Unexpected error moving Jira issue %s to To Do for refired incident", issue_key)
 
 
 def _sync_reopened_incident_note_to_jira(
@@ -265,8 +254,6 @@ def _sync_reopened_incident_note_to_jira(
         _run_async(jira_service.add_comment(issue_key=issue_key, text=body, credentials=credentials))
     except JiraError as exc:
         logger.warning("Failed syncing refire note to Jira issue %s: %s", issue_key, exc)
-    except Exception:
-        logger.exception("Unexpected error syncing refire note to Jira issue %s", issue_key)
 
 
 class IncidentStorageService:
@@ -704,7 +691,7 @@ class IncidentStorageService:
                 requested_assignee = payload.assignee.strip() or None
                 if requested_assignee and visibility == "private" and requested_assignee != user_id:
                     raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
+                        status_code=http_status.HTTP_403_FORBIDDEN,
                         detail="Private incidents can only be assigned to yourself",
                     )
                 incident.assignee = requested_assignee

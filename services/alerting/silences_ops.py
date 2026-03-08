@@ -12,6 +12,7 @@ import asyncio
 from typing import Dict, List, Optional
 import httpx
 import logging
+from sqlalchemy.exc import SQLAlchemyError
 from database import get_db_session
 from db_models import PurgedSilence
 from models.access.auth_models import TokenData
@@ -120,7 +121,7 @@ async def get_silences(service, filter_labels: Optional[Dict[str, str]] = None) 
         try:
             with get_db_session() as db:
                 purged_ids = {p.id for p in db.query(PurgedSilence).all()}
-        except Exception:
+        except SQLAlchemyError:
             purged_ids = set()
 
         if not purged_ids:
@@ -168,10 +169,7 @@ async def delete_silence(service, silence_id: str) -> bool:
             remaining = await get_silence(service, silence_id)
             if remaining is None:
                 return True
-            try:
-                state = (remaining.status or {}).get("state")
-            except Exception:
-                state = None
+            state = (remaining.status or {}).get("state") if isinstance(remaining.status, dict) else None
             if state and str(state).lower() == "expired":
                 return True
 

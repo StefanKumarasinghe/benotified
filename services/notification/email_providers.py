@@ -71,8 +71,6 @@ async def send_via_sendgrid(
         logger.error("SendGrid rejected request", extra={"status": e.response.status_code})
     except httpx.HTTPError:
         logger.exception("SendGrid transport failure")
-    except Exception:
-        logger.exception("Unexpected SendGrid error")
 
     return False
 
@@ -111,8 +109,6 @@ async def send_via_resend(
         logger.error("Resend rejected request", extra={"status": e.response.status_code})
     except httpx.HTTPError:
         logger.exception("Resend transport failure")
-    except Exception:
-        logger.exception("Unexpected Resend error")
 
     return False
 
@@ -139,6 +135,6 @@ async def send_via_smtp(
             use_tls=use_tls,
         )
         return True
-    except Exception:
+    except (OSError, TimeoutError, ValueError):
         logger.exception("SMTP delivery failed")
         return False

@@ -72,23 +72,19 @@ class NotificationService:
         if not channel.enabled:
             logger.info("Channel %s is disabled, skipping notification", channel.name)
             return False
-        try:
-            if channel.type == ChannelType.EMAIL:
-                return await self._send_email(channel, alert, action)
-            senders = {
-                ChannelType.SLACK:     self._send_slack,
-                ChannelType.TEAMS:     self._send_teams,
-                ChannelType.WEBHOOK:   self._send_webhook,
-                ChannelType.PAGERDUTY: self._send_pagerduty,
-            }
-            sender = senders.get(channel.type)
-            if not sender:
-                logger.error("Unknown channel type: %s", channel.type)
-                return False
-            return await sender(channel, alert, action)
-        except Exception as exc:
-            logger.exception("Error sending notification via %s: %s", channel.name, exc)
+        if channel.type == ChannelType.EMAIL:
+            return await self._send_email(channel, alert, action)
+        senders = {
+            ChannelType.SLACK:     self._send_slack,
+            ChannelType.TEAMS:     self._send_teams,
+            ChannelType.WEBHOOK:   self._send_webhook,
+            ChannelType.PAGERDUTY: self._send_pagerduty,
+        }
+        sender = senders.get(channel.type)
+        if not sender:
+            logger.error("Unknown channel type: %s", channel.type)
             return False
+        return await sender(channel, alert, action)
 
     async def send_incident_assignment_email(
         self,
@@ -138,7 +134,7 @@ class NotificationService:
             )
             logger.info("Incident assignment email sent to %s", recipient_email)
             return True
-        except Exception as exc:
+        except (OSError, TimeoutError, ValueError) as exc:
             logger.warning("Failed to send incident assignment email to %s: %s", recipient_email, exc)
             return False
 
