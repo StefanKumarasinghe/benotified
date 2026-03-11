@@ -12,6 +12,7 @@ import asyncio
 import logging
 from collections.abc import Mapping
 from email.message import EmailMessage
+from typing import Any, cast
 
 import aiosmtplib
 import httpx
@@ -87,15 +88,32 @@ async def send_smtp_with_retry(
 ) -> object:
     try:
         async with asyncio.timeout(config.DEFAULT_TIMEOUT):
-            return await aiosmtplib.send(
-                message=message,
-                hostname=hostname,
-                port=port,
-                username=username,
-                password=password,
-                start_tls=start_tls,
-                use_tls=use_tls,
-            )
+            smtp_send = cast(Any, aiosmtplib.send)
+            try:
+                return await smtp_send(
+                    message,
+                    hostname=hostname,
+                    port=port,
+                    username=username,
+                    password=password,
+                    start_tls=start_tls,
+                    use_tls=use_tls,
+                )
+            except TypeError as exc:
+                if "positional argument" not in str(exc):
+                    raise
+                kwargs = {
+                    "message": message,
+                    "hostname": hostname,
+                    "port": port,
+                    "username": username,
+                    "password": password,
+                    "start_tls": start_tls,
+                    "use_tls": use_tls,
+                }
+                return await smtp_send(
+                    **kwargs,
+                )
     except Exception as exc:
         logger.warning("SMTP send failed, retrying: %s:%s", hostname, port, exc_info=exc)
         raise

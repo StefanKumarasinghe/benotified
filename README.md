@@ -189,6 +189,8 @@ To run coverage for service modules:
 pytest -q --cov=services --cov-report=term-missing
 ```
 
+The service `pyproject.toml` now carries the developer-facing pytest, coverage, and mypy defaults so local editors and Python tooling can discover the service configuration from a standard entry point.
+
 ## Docker
 
 Build and run the service locally:
